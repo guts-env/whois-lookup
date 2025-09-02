@@ -1,95 +1,169 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState } from 'react';
+import {
+  Container,
+  Title,
+  Text,
+  Paper,
+  Stack,
+  Alert,
+  Box,
+  Divider,
+  Group,
+  Checkbox,
+} from '@mantine/core';
+import { ContactInfoTable } from '@/components/ContactInfoTable';
+import { DomainInfoTable } from '@/components/DomainInfoTable';
+import useWhoIs from '@/hooks/useWhoIs';
+import { SearchBar } from '@/components/SearchBar';
+import { TableSkeleton } from '@/components/TableSkeleton';
+import { WhoIsInfoTypeEnum } from '@/types/enum';
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { data, isLoading, error, fetchWhoIs } = useWhoIs();
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  const [infoType, setInfoType] = useState<WhoIsInfoTypeEnum | undefined>(undefined);
+
+  return (
+    <Box
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #f8f9fa 0%, #abc1e0 100%)'
+      }}
+    >
+      <Container size="md" py="xl">
+        <Stack gap="xl">
+          <Paper shadow="sm" radius="md" p="xl" mt="xl">
+            <Stack gap="md">
+              <Group justify="space-between" align="center">
+                <div>
+                  <Title order={1} size="h2" fw={700} c="dark.8">
+                    WHOIS Domain Lookup
+                  </Title>
+                  <Text size="sm" c="dimmed" mt={4}>
+                    Search domain registration and ownership information
+                  </Text>
+                </div>
+              </Group>
+
+              <Divider />
+
+              <SearchBar onSearch={fetchWhoIs} isLoading={isLoading} infoType={infoType} />
+
+              <Text size="xs" c="dimmed">
+                Select the information you want to view. Both will be displayed if neither is selected.
+              </Text>
+
+              <Group align="center" gap="md">
+                <Checkbox
+                  label="Domain Information"
+                  checked={infoType === WhoIsInfoTypeEnum.DOMAIN_INFO}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                    setInfoType(event.currentTarget.checked ? WhoIsInfoTypeEnum.DOMAIN_INFO : undefined)
+                  }
+                  disabled={isLoading}
+                />
+                <Checkbox
+                  label="Contact Information"
+                  checked={infoType === WhoIsInfoTypeEnum.DOMAIN_CONTACT}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => 
+                    setInfoType(event.currentTarget.checked ? WhoIsInfoTypeEnum.DOMAIN_CONTACT : undefined)
+                  }
+                  disabled={isLoading}
+                />
+              </Group>
+            </Stack>
+          </Paper>
+
+          {isLoading && infoType === WhoIsInfoTypeEnum.DOMAIN_INFO && (
+            <DomainInfoSkeleton />
+          )}
+
+          {isLoading && infoType === WhoIsInfoTypeEnum.DOMAIN_CONTACT && (
+            <ContactInfoSkeleton />
+          )}
+
+          {isLoading && !infoType && (
+            <>
+              <DomainInfoSkeleton />
+              <ContactInfoSkeleton />
+            </>
+          )}
+
+          {error && (
+            <Paper shadow="sm" radius="md" p="md">
+              <Alert
+                title="Lookup Failed"
+                color="red"
+                variant="light"
+                radius="md"
+              >
+                <Text size="sm">{error}</Text>
+              </Alert>
+            </Paper>
+          )}
+
+          {!isLoading && !error && data.domainInfo && (
+          <Paper shadow="sm" radius="md" p="xl">
+            <Stack gap="md">
+              <Title order={2} size="h4" fw={600} c="dark.7">
+                Domain Information
+              </Title>
+              <Divider />
+              <DomainInfoTable data={data.domainInfo} />
+            </Stack>
+          </Paper>
+          )}
+
+          {!isLoading && !error && data.contactInfo && (
+          <Paper shadow="sm" radius="md" p="xl">
+            <Stack gap="md">
+              <Title order={2} size="h4" fw={600} c="dark.7">
+                Contact Information
+              </Title>
+              <Divider />
+              <ContactInfoTable data={data.contactInfo} />
+            </Stack>
+          </Paper>
+          )}
+
+          {!isLoading && !error && !data.domainInfo && !data.contactInfo && (
+            <Paper shadow="sm" radius="md" p="xl" style={{ textAlign: 'center' }}>
+              <Stack gap="md" align="center">
+                <Title order={3} size="h5" fw={500} c="dimmed">
+                  No Results Yet
+                </Title>
+                <Text size="sm" c="dimmed" maw={400}>
+                  Enter a domain name above to view its WHOIS information.
+                </Text>
+              </Stack>
+            </Paper>
+          )}
+        </Stack>
+      </Container>
+    </Box >
+  );
+}
+
+function DomainInfoSkeleton() {
+  return (
+    <Paper shadow="sm" radius="md" p="xl">
+      <Stack gap="md">
+        <Text fw={500} size="lg">Loading domain information...</Text>
+        <TableSkeleton />
+      </Stack>
+    </Paper>
+  );
+}
+
+function ContactInfoSkeleton() {
+  return (
+    <Paper shadow="sm" radius="md" p="xl">
+      <Stack gap="md">
+        <Text fw={500} size="lg">Loading contact information...</Text>
+        <TableSkeleton columns={4} />
+      </Stack>
+    </Paper>
   );
 }
